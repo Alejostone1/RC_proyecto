@@ -8,7 +8,8 @@ L q''(t) + R q'(t) + q(t)/C = E(t),      i(t) = q'(t)
 
 describe, predice y explica el comportamiento de un sistema físico real.
 
-**Demo en línea:** https://alejostone1.github.io/RC_proyecto/
+**Demo en línea:** https://rlc-laboratory.vercel.app/
+(espejo en GitHub Pages: https://alejostone1.github.io/RC_proyecto/, una vez activado en *Settings → Pages → rama `gh-pages`*)
 
 | | |
 |---|---|
