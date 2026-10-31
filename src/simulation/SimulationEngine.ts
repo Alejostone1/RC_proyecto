@@ -21,7 +21,9 @@ import {
   TIMESTEP_FRACTION,
 } from '../utils/Constants';
 import { clamp } from '../utils/MathUtils';
+import { computeScales, type PhysicalScales } from '../physics/Scales';
 import { FixedTimestep } from './FixedTimestep';
+import { History } from './History';
 import { createInitialState, type SimulationState } from './SimulationState';
 
 export interface SimulationConfig {
@@ -52,6 +54,14 @@ export class SimulationEngine {
   private readonly energy: EnergySnapshot = { EC: 0, EL: 0, total: 0, PR: 0 };
   private stepCount = 0;
   readonly clock: FixedTimestep;
+  /** Muestras para osciloscopio y retrato de fase (decimadas a `sampleDt`). */
+  readonly history = new History(8192);
+  /** Escalas físicas de referencia (máximos de la solución exacta). */
+  scales!: PhysicalScales;
+  /** Intervalo de muestreo del historial [s de simulación]. */
+  sampleDt = 0.002;
+  private nextSampleStep = 0;
+  private sampleEverySteps = 1;
 
   constructor(config: SimulationConfig) {
     this.state = createInitialState('underdamped');
@@ -94,6 +104,12 @@ export class SimulationEngine {
     this.f = createRLCDerivative(this.config.params, this.config.excitation);
     this.analysis = classifyDamping(this.config.params);
     this.clock.h = recommendedTimestep(this.analysis, this.config.excitation);
+    this.scales = computeScales(this.config.params, this.config.excitation, this.config.initial, this.analysis);
+    // ≥ 40 muestras por el período más corto relevante, sin bajar de h ni pasar de 5 ms
+    const fastest = Math.max(this.analysis.omega0, this.config.excitation.kind === 'sine' ? this.config.excitation.omega : 0);
+    const target = Math.min(0.005, (2 * Math.PI) / fastest / 40);
+    this.sampleEverySteps = Math.max(1, Math.round(target / this.clock.h));
+    this.sampleDt = this.sampleEverySteps * this.clock.h;
     this.reset();
   }
 
@@ -105,7 +121,27 @@ export class SimulationEngine {
     this.state.status = 'idle';
     this.state.error = null;
     this.state.regime = this.analysis.regime;
+    this.history.clear();
+    this.nextSampleStep = 0;
     this.syncState();
+    this.recordSample();
+  }
+
+  /** Tiempo de simulación que cabe en el historial [s]. */
+  get historySpan(): number {
+    return this.history.capacity * this.sampleDt;
+  }
+
+  private recordSample(): void {
+    const s = this.state;
+    s.t = this.stepCount * this.clock.h;
+    const { R, C } = this.config.params;
+    const q = this.x[0];
+    const i = this.x[1];
+    const E = evaluateExcitation(this.config.excitation, s.t);
+    const VC = q / C;
+    this.history.push(s.t, q, i, E - R * i - VC, VC, E);
+    this.nextSampleStep = this.stepCount + this.sampleEverySteps;
   }
 
   start(): void {
@@ -151,6 +187,7 @@ export class SimulationEngine {
       this.stepCount--;
       return false;
     }
+    if (this.stepCount >= this.nextSampleStep) this.recordSample();
     return true;
   }
 

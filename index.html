@@ -3,18 +3,91 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="RLC Laboratory: laboratorio virtual 3D de la ecuación diferencial L q'' + R q' + q/C = E(t)" />
     <title>RLC Laboratory</title>
-    <style>
-      body { margin: 0; padding: 24px; background: #0b0f17; color: #d6e2f0; font: 14px/1.5 ui-monospace, Consolas, monospace; }
-      h1 { font-size: 18px; letter-spacing: 0.08em; }
-      table { border-collapse: collapse; margin-top: 12px; }
-      td, th { padding: 4px 12px; border-bottom: 1px solid #1f2a3a; text-align: left; }
-      th { color: #7fb4ff; font-weight: 600; }
-    </style>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2307101c'/%3E%3Cpath d='M4 16h5l2-5 3 10 3-10 3 10 2-5h6' fill='none' stroke='%234fc3ff' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=STIX+Two+Text:ital@0;1&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <h1>RLC LABORATORY — motor matemático (Fases 1–2)</h1>
-    <div id="app"></div>
+    <header id="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 16h6l2-6 3 12 3-12 3 12 3-12 2 6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
+        <div>
+          <h1>RLC LABORATORY</h1>
+          <small>L q'' + R q' + q/C = E(t)</small>
+        </div>
+      </div>
+      <div class="status">
+        <span id="regime-badge" class="badge">—</span>
+        <span id="resonance-badge" class="badge warn" hidden>CERCA DE RESONANCIA</span>
+        <span id="sim-status" class="status-item">—</span>
+        <span id="sim-time" class="status-item mono">t = 0.000 s</span>
+        <span id="fps" class="status-item mono dim">— FPS</span>
+      </div>
+      <div class="actions">
+        <button id="btn-demo-damping" class="ghost">Demostrar amortiguamiento</button>
+        <button id="btn-demo-resonance" class="ghost">Demostrar resonancia</button>
+        <button id="btn-presentation" class="accent" title="Atajo: P">Modo sustentación</button>
+      </div>
+    </header>
+
+    <aside id="left" class="panel scroll"></aside>
+
+    <main id="viewport">
+      <div id="error-banner" role="alert" hidden></div>
+      <div id="demo-caption" hidden>
+        <div class="demo-head"><span id="demo-step"></span><button id="demo-next" class="ghost small">Siguiente ›</button><button id="demo-stop" class="ghost small">Terminar</button></div>
+        <h3 id="demo-title"></h3>
+        <p id="demo-text"></p>
+        <div id="demo-progress"><i></i></div>
+      </div>
+      <div id="info-card" hidden></div>
+      <div id="view-buttons"></div>
+      <div id="presentation-card" hidden></div>
+      <div class="viewport-hint">Arrastra para orbitar · rueda para zoom · clic en un componente para inspeccionarlo</div>
+    </main>
+
+    <aside id="right" class="panel">
+      <nav class="tabs" role="tablist">
+        <button data-tab="telemetry" class="active">Telemetría</button>
+        <button data-tab="math">Modelo matemático</button>
+        <button data-tab="explain">¿Qué está pasando?</button>
+        <button data-tab="compare">Comparación</button>
+        <button data-tab="resonance">Resonancia</button>
+      </nav>
+      <section data-pane="telemetry" class="pane scroll active"><div id="telemetry"></div></section>
+      <section data-pane="math" class="pane scroll"><div id="math"></div></section>
+      <section data-pane="explain" class="pane scroll"><div id="explain"></div></section>
+      <section data-pane="compare" class="pane scroll">
+        <h2>COMPARACIÓN DE SOLUCIONES</h2>
+        <p class="dim">RK4 (línea continua) y solución analítica exacta (línea discontinua) sobre el mismo intervalo, con el mismo paso h del motor.</p>
+        <div class="chart tall"><canvas id="compare-canvas"></canvas></div>
+        <div id="compare-stats" class="stats"></div>
+      </section>
+      <section data-pane="resonance" class="pane scroll">
+        <h2>CURVA DE RESONANCIA</h2>
+        <p class="dim">Amplitud permanente de la corriente |I(ω)| = E₀ / √(R² + (ωL − 1/(ωC))²). La franja sombreada es la banda de media potencia ω₀ ± α.</p>
+        <div class="chart"><canvas id="resonance-canvas"></canvas></div>
+        <div id="resonance-stats" class="stats"></div>
+      </section>
+    </aside>
+
+    <section id="dock">
+      <div class="dock-cell scope">
+        <div class="dock-head">
+          <h2>OSCILOSCOPIO</h2>
+          <div id="scope-controls" class="scope-controls"></div>
+        </div>
+        <div class="chart fill"><canvas id="scope-canvas"></canvas></div>
+      </div>
+      <div class="dock-cell phase">
+        <div class="dock-head"><h2>RETRATO DE FASE <span class="dim">q vs i</span></h2></div>
+        <div class="chart fill"><canvas id="phase-canvas"></canvas></div>
+      </div>
+    </section>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
