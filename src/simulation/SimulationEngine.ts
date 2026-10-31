@@ -1,0 +1,175 @@
+/**
+ * Motor de simulación: integra la EDO del RLC con RK4 a paso fijo, independiente
+ * del renderizado. Expone un SimulationState que la visualización solo lee.
+ */
+import { classifyDamping, type DampingAnalysis } from '../physics/DampingClassifier';
+import { computeEnergyInto, type EnergySnapshot } from '../physics/EnergyCalculator';
+import { evaluateExcitation, type Excitation } from '../physics/Excitation';
+import {
+  createRLCDerivative,
+  validateInitialConditions,
+  validateParams,
+  type InitialConditions,
+  type RLCParams,
+  type StateDerivative,
+} from '../physics/RLCModel';
+import { RK4Solver } from '../physics/RK4Solver';
+import {
+  MAX_TIMESTEP,
+  MIN_TIMESTEP,
+  OVERFLOW_THRESHOLD,
+  TIMESTEP_FRACTION,
+} from '../utils/Constants';
+import { clamp } from '../utils/MathUtils';
+import { FixedTimestep } from './FixedTimestep';
+import { createInitialState, type SimulationState } from './SimulationState';
+
+export interface SimulationConfig {
+  params: RLCParams;
+  excitation: Excitation;
+  initial: InitialConditions;
+}
+
+/**
+ * Paso recomendado: una fracción del tiempo característico más rápido del sistema.
+ * Tasas consideradas: ω₀, |s₂| (raíz rápida en sobreamortiguado ≈ R/L) y ω de la fuente.
+ * Así RK4 queda lejos de su límite de estabilidad (|h·s| ≲ 2.78) incluso en casos rígidos.
+ */
+export function recommendedTimestep(analysis: DampingAnalysis, exc: Excitation): number {
+  const fastestRoot = Math.max(Math.hypot(analysis.roots[0].re, analysis.roots[0].im), Math.hypot(analysis.roots[1].re, analysis.roots[1].im));
+  const rate = Math.max(analysis.omega0, fastestRoot, exc.kind === 'sine' ? Math.abs(exc.omega) : 0);
+  return clamp(TIMESTEP_FRACTION / rate, MIN_TIMESTEP, MAX_TIMESTEP);
+}
+
+export class SimulationEngine {
+  readonly state: SimulationState;
+  analysis!: DampingAnalysis;
+  private config!: SimulationConfig;
+  private f!: StateDerivative;
+  private readonly solver = new RK4Solver(2);
+  private readonly x = new Float64Array(2);
+  private readonly dx = new Float64Array(2);
+  private readonly energy: EnergySnapshot = { EC: 0, EL: 0, total: 0, PR: 0 };
+  private stepCount = 0;
+  readonly clock: FixedTimestep;
+
+  constructor(config: SimulationConfig) {
+    this.state = createInitialState('underdamped');
+    this.clock = new FixedTimestep(MAX_TIMESTEP);
+    this.configure(config);
+  }
+
+  get h(): number {
+    return this.clock.h;
+  }
+
+  get params(): Readonly<RLCParams> {
+    return this.config.params;
+  }
+
+  get excitation(): Readonly<Excitation> {
+    return this.config.excitation;
+  }
+
+  get initial(): Readonly<InitialConditions> {
+    return this.config.initial;
+  }
+
+  /**
+   * Aplica una nueva configuración y reinicia en t = 0.
+   * Lanza RangeError si los parámetros son físicamente inválidos (L ≤ 0, C ≤ 0, R < 0, NaN…).
+   */
+  configure(config: SimulationConfig): void {
+    const issues = [...validateParams(config.params), ...validateInitialConditions(config.initial)];
+    if (!Number.isFinite(config.excitation.E0) || !Number.isFinite(config.excitation.omega)) {
+      issues.push({ field: 'excitation', message: 'E₀ y ω deben ser finitos.' });
+    }
+    if (issues.length > 0) throw new RangeError(issues.map((i) => i.message).join(' '));
+
+    this.config = {
+      params: { ...config.params },
+      excitation: { ...config.excitation },
+      initial: { ...config.initial },
+    };
+    this.f = createRLCDerivative(this.config.params, this.config.excitation);
+    this.analysis = classifyDamping(this.config.params);
+    this.clock.h = recommendedTimestep(this.analysis, this.config.excitation);
+    this.reset();
+  }
+
+  reset(): void {
+    this.x[0] = this.config.initial.q0;
+    this.x[1] = this.config.initial.i0;
+    this.stepCount = 0;
+    this.clock.reset();
+    this.state.status = 'idle';
+    this.state.error = null;
+    this.state.regime = this.analysis.regime;
+    this.syncState();
+  }
+
+  start(): void {
+    if (this.state.status !== 'error') this.state.status = 'running';
+  }
+
+  pause(): void {
+    if (this.state.status === 'running') this.state.status = 'paused';
+  }
+
+  /** Avanza la simulación según el tiempo real transcurrido. Devuelve los pasos ejecutados. */
+  update(realDt: number, speed = 1): number {
+    if (this.state.status !== 'running') return 0;
+    const n = this.clock.advance(realDt, speed, () => this.stepOnce());
+    this.syncState();
+    return n;
+  }
+
+  /** Avanza exactamente `n` pasos físicos (útil en pruebas y demostraciones). */
+  stepN(n: number): void {
+    for (let k = 0; k < n; k++) if (!this.stepOnce()) break;
+    this.syncState();
+  }
+
+  private stepOnce(): boolean {
+    const t = this.stepCount * this.clock.h;
+    const prevQ = this.x[0];
+    const prevI = this.x[1];
+    this.solver.step(this.f, t, this.x, this.clock.h);
+    this.stepCount++;
+    const q = this.x[0];
+    const i = this.x[1];
+    if (!Number.isFinite(q) || !Number.isFinite(i) || Math.abs(q) > OVERFLOW_THRESHOLD || Math.abs(i) > OVERFLOW_THRESHOLD) {
+      const which = !Number.isFinite(q) || Math.abs(q) > OVERFLOW_THRESHOLD ? 'q(t)' : 'i(t)';
+      const kind = Number.isNaN(q) || Number.isNaN(i) ? 'NaN' : 'desbordamiento numérico';
+      this.state.status = 'error';
+      this.state.error =
+        `Simulación detenida en t = ${(this.stepCount * this.clock.h).toFixed(6)} s: ${kind} en ${which}. ` +
+        `Revise los parámetros (R=${this.config.params.R}, L=${this.config.params.L}, C=${this.config.params.C}, h=${this.clock.h}).`;
+      // Se restaura el último valor finito conocido para que la visualización no reciba NaN.
+      this.x[0] = prevQ;
+      this.x[1] = prevI;
+      this.stepCount--;
+      return false;
+    }
+    return true;
+  }
+
+  private syncState(): void {
+    const s = this.state;
+    const t = this.stepCount * this.clock.h;
+    const { params, excitation } = this.config;
+    this.f(t, this.x, this.dx);
+    s.t = t;
+    s.q = this.x[0];
+    s.i = this.x[1];
+    s.didt = this.dx[1];
+    s.E = evaluateExcitation(excitation, t);
+    s.VR = params.R * s.i;
+    s.VC = s.q / params.C;
+    s.VL = params.L * s.didt;
+    computeEnergyInto(params, s.q, s.i, this.energy);
+    s.EC = this.energy.EC;
+    s.EL = this.energy.EL;
+    s.PR = this.energy.PR;
+  }
+}
