@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#070c15" />
+    <meta name="description" content="RLC Laboratory: laboratorio virtual 3D, presentación interactiva e informe de resultados de la ecuación diferencial L q'' + R q' + q/C = E(t)" />
+    <title>RLC Laboratory</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2307101c'/%3E%3Cpath d='M4 16h5l2-5 3 10 3-10 3 10 2-5h6' fill='none' stroke='%234fc3ff' stroke-width='2.2' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=STIX+Two+Text:ital@0;1&display=swap" rel="stylesheet" />
+    <script>
+      try { if (localStorage.getItem('rlc-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="./assets/index-K6CbRvg2.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-D8G1GhO3.css">
+  </head>
+  <body data-view="lab">
+    <header id="topbar">
+      <a class="brand" href="#/laboratorio" aria-label="RLC Laboratory, inicio">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M2 16h6l2-6 3 12 3-12 3 12 3-12 2 6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
+        <div>
+          <h1>RLC LABORATORY</h1>
+          <small>L q'' + R q' + q/C = E(t)</small>
+        </div>
+      </a>
+      <nav class="main-nav" aria-label="Secciones">
+        <a href="#/laboratorio" data-route="lab">Laboratorio</a>
+        <a href="#/presentacion" data-route="presentation">Presentación</a>
+        <a href="#/resultados" data-route="results">Resultados</a>
+      </nav>
+      <div class="top-actions">
+        <button id="btn-capture" class="primary" title="Captura el estado actual y genera el informe">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v12H4z M12 10a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+          <span>Obtener resultados</span>
+        </button>
+        <button id="theme-toggle" class="icon-btn" aria-label="Cambiar tema claro/oscuro" title="Cambiar tema">
+          <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+          <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===================== LABORATORIO ===================== -->
+    <section id="view-lab" class="view" aria-label="Laboratorio">
+      <div id="lab-status">
+        <span id="regime-badge" class="badge">—</span>
+        <span id="resonance-badge" class="badge warn" hidden>Cerca de resonancia</span>
+        <span id="sim-status" class="status-item">—</span>
+        <span id="sim-time" class="status-item mono">t = 0.000 s</span>
+        <span id="fps" class="status-item mono dim">— FPS</span>
+        <span class="grow"></span>
+        <button id="btn-demo-damping" class="ghost small">Demo amortiguamiento</button>
+        <button id="btn-demo-resonance" class="ghost small">Demo resonancia</button>
+        <button id="btn-presentation" class="ghost small" title="Atajo: P">Modo proyector</button>
+      </div>
+
+      <aside id="left" class="panel scroll" data-msection="controls"></aside>
+
+      <div id="viewport">
+        <div id="error-banner" role="alert" hidden></div>
+        <div id="demo-caption" hidden>
+          <div class="demo-head"><span id="demo-step"></span><button id="demo-next" class="ghost small">Siguiente ›</button><button id="demo-stop" class="ghost small">Terminar</button></div>
+          <h3 id="demo-title"></h3>
+          <p id="demo-text"></p>
+          <div id="demo-progress"><i></i></div>
+        </div>
+        <div id="info-card" hidden></div>
+        <div id="view-buttons" class="chip-row"></div>
+        <div id="presentation-card" hidden></div>
+        <div id="potential-legend" class="legend"><span>−V</span><i></i><span>+V</span><em>potencial de los cables</em></div>
+        <div class="viewport-hint">Arrastra para orbitar · rueda o pellizco para zoom · toca un componente · doble clic para acercar</div>
+      </div>
+
+      <div id="quickbar" aria-label="Controles rápidos">
+        <button id="qb-run" class="primary">▶ Iniciar</button>
+        <button id="qb-reset" class="ghost">↺</button>
+        <select id="qb-preset" aria-label="Preset"></select>
+        <button id="qb-capture" class="ghost">Resultados</button>
+      </div>
+
+      <nav id="msections" class="segmented" aria-label="Secciones del laboratorio">
+        <button data-m="controls">Controles</button>
+        <button data-m="graphs" class="active">Gráficas</button>
+        <button data-m="analysis">Análisis</button>
+      </nav>
+
+      <aside id="right" class="panel" data-msection="analysis">
+        <nav class="tabs" role="tablist">
+          <button data-tab="telemetry" class="active">Telemetría</button>
+          <button data-tab="math">Modelo</button>
+          <button data-tab="explain">¿Qué pasa?</button>
+          <button data-tab="compare">RK4 vs exacta</button>
+          <button data-tab="resonance">Resonancia</button>
+        </nav>
+        <section data-pane="telemetry" class="pane scroll active"><div id="telemetry"></div></section>
+        <section data-pane="math" class="pane scroll"><div id="math"></div></section>
+        <section data-pane="explain" class="pane scroll"><div id="explain"></div></section>
+        <section data-pane="compare" class="pane scroll">
+          <h2>Comparación de soluciones</h2>
+          <p class="dim">RK4 (línea continua) y solución analítica exacta (línea discontinua) sobre el mismo intervalo, con el mismo paso h del motor.</p>
+          <div class="chart tall"><canvas id="compare-canvas"></canvas></div>
+          <div id="compare-stats" class="stats"></div>
+        </section>
+        <section data-pane="resonance" class="pane scroll">
+          <h2>Curva de resonancia</h2>
+          <p class="dim">Amplitud permanente de la corriente |I(ω)| = E₀ / √(R² + (ωL − 1/(ωC))²). La franja sombreada es la banda de media potencia ω₀ ± α.</p>
+          <div class="chart"><canvas id="resonance-canvas"></canvas></div>
+          <div id="resonance-stats" class="stats"></div>
+        </section>
+      </aside>
+
+      <section id="dock" data-msection="graphs">
+        <div class="dock-cell scope">
+          <div class="dock-head">
+            <h2>Osciloscopio</h2>
+            <div id="scope-controls" class="scope-controls"></div>
+          </div>
+          <div class="chart fill"><canvas id="scope-canvas"></canvas></div>
+        </div>
+        <div class="dock-cell phase">
+          <div class="dock-head"><h2>Retrato de fase <span class="dim">q vs i</span></h2></div>
+          <div class="chart fill"><canvas id="phase-canvas"></canvas></div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================== PRESENTACIÓN ===================== -->
+    <section id="view-presentation" class="view" aria-label="Presentación" hidden>
+      <div id="pres-stage" class="pres-stage"></div>
+      <article id="pres-panel" class="pres-panel" aria-live="polite"></article>
+      <footer class="pres-nav">
+        <button id="pres-prev" class="icon-btn" aria-label="Anterior">‹</button>
+        <div class="pres-progress"><div id="pres-dots"></div><span id="pres-count" class="mono"></span></div>
+        <button id="pres-notes-btn" class="ghost small" title="Notas del expositor (N)">Notas</button>
+        <button id="pres-full" class="ghost small" title="Pantalla completa (F)">⛶</button>
+        <button id="pres-next" class="icon-btn primary" aria-label="Siguiente">›</button>
+      </footer>
+      <aside id="pres-notes" hidden></aside>
+    </section>
+
+    <!-- ===================== RESULTADOS ===================== -->
+    <section id="view-results" class="view scroll" aria-label="Resultados" hidden>
+      <div id="results-root"></div>
+    </section>
+
+    <nav id="bottom-nav" aria-label="Secciones">
+      <a href="#/laboratorio" data-route="lab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg><span>Laboratorio</span></a>
+      <a href="#/presentacion" data-route="presentation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H3zM12 16v4M8 20h8M10 8l4 2-4 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg><span>Presentación</span></a>
+      <a href="#/resultados" data-route="results"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg><span>Resultados</span></a>
+    </nav>
+
+    <div id="toast" role="status" hidden></div>
+  </body>
+</html>
