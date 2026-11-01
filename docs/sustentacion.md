@@ -1,7 +1,9 @@
 # Sustentación: RLC Laboratory
 
 Duración sugerida: **15–18 minutos** de exposición y 5 de preguntas.
-Antes de empezar: abrir la demo en pantalla completa (F11), activar el **Modo sustentación** (tecla `P`) y cargar el preset **Subamortiguado**.
+Antes de empezar: abrir la demo, ir a **Presentación** y pulsar `F` para la pantalla completa. Cada escena tiene en la esquina el nombre del expositor sugerido, y con `N` se ven las notas. Se avanza con → o con un clic. La última escena lleva directamente al laboratorio.
+
+> El reparto de abajo coincide con el de las escenas de la presentación. Si se prefiere proyectar solo el laboratorio, el **Modo proyector** (tecla `P` dentro del laboratorio) simplifica la interfaz.
 
 ---
 
@@ -82,6 +84,13 @@ Pestaña **Resonancia** y botón **Demostrar resonancia**.
   - Capacitor → cargas ∝ |q|, rojo/azul según el signo; campo ∝ V_C.
 - Normalización: cada efecto se divide por el máximo que alcanza la **solución exacta**, así que lo visual es proporcional a lo físico.
 - Rendimiento: geometrías y materiales reutilizados, sin crear objetos en el bucle de render, gráficas con búfer circular y DOM actualizado a 10 Hz.
+
+## 6 bis. Obtener resultados (Sebastián o Daniel)
+
+Después de la demostración en vivo, pulsar **Obtener resultados**. Recorrer el informe:
+- «Lo que observamos»: el sobrepico medido coincide con e^(−απ/ω_d);
+- la tabla de validación, con todas las comprobaciones superadas;
+- un escenario de «Lo que pasaría si…», que se puede abrir en el laboratorio con «Probar en el laboratorio».
 
 ## 7. Demostración en vivo y cierre (Sebastián, con todos)
 

@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { NODES } from '../scene/CircuitPath';
 import { cylinderBetween, disposeTree, heatColor, materials } from '../scene/Materials';
+import { blendingFor, type SceneThemeDef } from '../scene/SceneTheme';
 import { resistorBands } from '../utils/ResistorCode';
 import { norm, type LabComponent, type VisualFrame } from './types';
 
@@ -94,6 +95,15 @@ export class Resistor implements LabComponent {
   onConfigure(frame: VisualFrame): void {
     const bands = resistorBands(frame.params.R);
     bands.colors.forEach((c, k) => this.bandMats[k].color.set(c));
+  }
+
+  applyTheme(t: SceneThemeDef): void {
+    this.heatMat.color.setHex(t.heatColor);
+    const b = blendingFor(t);
+    if (this.heatMat.blending !== b) {
+      this.heatMat.blending = b;
+      this.heatMat.needsUpdate = true;
+    }
   }
 
   /** Temperatura visual normalizada (0 = fría, 1 = máxima potencia del experimento). */

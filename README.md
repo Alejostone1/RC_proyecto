@@ -18,6 +18,18 @@ describe, predice y explica el comportamiento de un sistema físico real.
 | Universidad | Universidad Católica de Pereira |
 | Integrantes | Alejandro Piedrahita · Daniel Colorado · Sebastián Patiño |
 
+## Tres experiencias
+
+| | Qué es | Para qué |
+|---|---|---|
+| **Laboratorio** (`#/laboratorio`) | Circuito 3D interactivo con controles, osciloscopio, retrato de fase, telemetría y análisis | Experimentar: cambiar R, L, C y la fuente, y ver la respuesta |
+| **Presentación** (`#/presentacion`) | 13 escenas animadas que comparten la escena 3D: problema, componentes, Kirchhoff, por qué es una EDO, RK4, amortiguamiento, resonancia, energía, validación y conexión con el laboratorio | Sustentar el proyecto o entenderlo sin conocimientos previos |
+| **Resultados** (`#/resultados`) | Informe interpretativo generado con **Obtener resultados** | Explicar qué ocurrió, por qué ocurrió y qué pasaría si cambian los parámetros |
+
+- **Tema claro y oscuro** (botón ☀/☾): el oscuro conserva la estética original y el claro es académico, sin colores neón. Gráficas, escena 3D, HUD y fórmulas responden al tema. La elección se recuerda en el navegador.
+- **Diseño pensado para celular:** visor 3D arriba, barra de controles rápidos fija, secciones por pestañas, navegación inferior y gestos para deslizar en la presentación. En equipos táctiles se reduce la resolución, se desactivan las sombras y el bloom sale apagado por defecto, para ahorrar batería.
+- **Presentación:** ← → o deslizar para avanzar, `N` muestra las notas del expositor (con el reparto sugerido) y `F` activa la pantalla completa.
+
 ## Objetivo
 
 No es una calculadora. Es un laboratorio en el que cada efecto visual está ligado a una variable matemática:
@@ -35,6 +47,9 @@ ECUACIÓN DIFERENCIAL → SISTEMA DE 1.er ORDEN → RK4 / SOLUCIÓN ANALÍTICA �
 | V_L = L di/dt | brillo de la bobina (fem inducida) |
 | P_R = i²R | temperatura visual del resistor (rampa de cuerpo caliente, con retardo térmico) |
 | E(t) | pantalla de la fuente (DC / AC / OFF) |
+| potenciales de nodo | color de cada tramo de cable (cálido = +V, frío = −V): cada componente produce un salto igual a su caída de tensión |
+| V_R, V_L, V_C | flechas 3D sobre cada componente, con longitud ∝ \|V\| y apuntando en el sentido de la caída |
+| E_C, E_L, W_R | monitor de energía: las tres columnas suman la cuarta (Σ = energía inicial + ∫E·i dt), por conservación de la energía |
 
 Cada efecto se normaliza con el **máximo físico de la solución exacta** para esa configuración. Por eso lo que se ve es proporcional a la magnitud real, sin una ganancia arbitraria.
 
@@ -79,8 +94,13 @@ src/
 ├── components/                 Resistor, Inductor, Capacitor, VoltageSource, Switch, Wires
 ├── particles/CurrentFlow.ts    corriente conceptual con InstancedMesh
 ├── visualization/              Osciloscopio, retrato de fase, comparación, curva de resonancia
-├── ui/                         Controles, HUD, paneles, presets, demostraciones, modo sustentación
-└── utils/                      constantes, formato, código de colores
+├── analysis/                   captura (Snapshot), mediciones, escenarios "qué pasaría si", intérprete
+├── results/                    vista de RESULTADOS: informe visual, mini-gráficas, esquema del circuito
+├── presentation/               vista de PRESENTACIÓN: escenas, widgets animados, KaTeX
+├── theme/                      gestor de tema claro/oscuro
+├── app/Router.ts               navegación #/laboratorio ↔ #/presentacion ↔ #/resultados
+├── ui/                         controles, HUD, paneles, presets, demostraciones, modo proyector
+└── utils/                      constantes, formato, paletas, código de colores
 ```
 
 La simulación nunca depende del render: **SIMULACIÓN → ESTADO → VISUALIZACIÓN**. Los componentes 3D solo leen el estado.
@@ -119,6 +139,22 @@ Aquí R_c = 2√(L/C) y ω_d = √(ω₀² − α²). El régimen crítico se de
 
 Todos los casos tienen solución analítica exacta. No hizo falta usar RK4 como sustituto en ninguno.
 
+## Obtener resultados: captura e interpretación
+
+Al pulsar **Obtener resultados** se pausa la simulación y se toma una «fotografía matemática». Contiene:
+
+- la configuración y el estado en t = 0 y en t final (q, i, V_R, V_L, V_C, E_C, E_L);
+- estadísticas de **toda** la corrida: máximos, extremos de q, cruces por el equilibrio, banda del 2 %, energía entregada ∫E·i dt y disipada ∫R·i² dt. Las dos integrales se calculan con el mismo RK4, como componentes adicionales del estado;
+- mediciones (período, α por decremento logarítmico, sobrepico, tiempo de establecimiento, amplitud permanente), obtenidas con el **mismo algoritmo** sobre la corrida RK4 y sobre la solución exacta, para poder compararlas.
+
+El intérprete (`src/analysis/Interpreter.ts`) funciona con reglas y no usa IA: cada frase depende de los números. El informe tiene estas secciones:
+
+1. **Lo que configuramos**, **Lo que observamos** y **Lo que pasaría si…**. Los escenarios (2R, R/2, R = R_c, 2L, 2C y ω = ω₀) se **recalculan** resolviendo de nuevo la ecuación.
+2. Análisis por componente (resistor, inductor, capacitor, fuente).
+3. Comparación entre la configuración inicial y el resultado, con lo que cambió.
+4. Validación medido vs. teórico. En los cuatro presets se superan todas las validaciones.
+5. Conclusión del sistema completo, en 10 preguntas.
+
 ## Resonancia
 
 Para E(t) = E₀ sin ωt, la amplitud permanente de la corriente es |I(ω)| = E₀/√(R² + (ωL − 1/(ωC))²).
@@ -131,7 +167,7 @@ Para E(t) = E₀ sin ωt, la amplitud permanente de la corriente es |I(ω)| = E�
 
 E_C = q²/(2C), E_L = L i²/2 y P_R = i²R. Al multiplicar la EDO por i se obtiene el balance d(E_C + E_L)/dt = E(t)·i − R i². Con R = 0 y E = 0, la energía se conserva. Usamos esa conservación para validar el integrador.
 
-## Pruebas (74, todas pasan)
+## Pruebas (92, todas pasan)
 
 | # | Prueba | Resultado |
 |---|---|---|
@@ -145,6 +181,11 @@ E_C = q²/(2C), E_L = L i²/2 y P_R = i²R. Al multiplicar la EDO por i se obtie
 | — | Orden de RK4 | al dividir h entre 2, el error baja ≈ 16 veces |
 | — | Paso fijo | estado idéntico a cualquier FPS o velocidad |
 | — | Errores | se rechazan L = 0, C = 0, R < 0, NaN e ∞; el desbordamiento detiene la simulación con un mensaje |
+| — | Energía acumulada | E_C + E_L + W_R = E(0) + W_fuente en todo instante (error < 10⁻⁶); en un escalón desde el reposo la fuente entrega C·E₀² y la mitad se disipa |
+| — | Mediciones | período = 2π/ω_d, α medido = R/2L, sobrepico = e^(−απ/ω_d) y amplitud en resonancia = E₀/R |
+| — | Informe | todas las validaciones pasan en los 4 presets; el texto refleja el régimen; los escenarios cambian en el sentido correcto (más R ⇒ más ζ; 2L o 2C ⇒ ω₀/√2) |
+| — | Kirchhoff en los cables | los saltos de potencial entre nodos son iguales a V_R, V_L y V_C |
+| — | Temas | las dos paletas tienen las mismas claves; el tema claro no usa mezcla aditiva ni brillo |
 
 Las pruebas están en [`tests/`](tests).
 

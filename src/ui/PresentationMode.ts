@@ -22,8 +22,8 @@ export class PresentationMode {
 
   toggle(): void {
     this.active = !this.active;
-    document.body.classList.toggle('presentation', this.active);
-    this.button.textContent = this.active ? 'Salir de sustentación' : 'Modo sustentación';
+    document.body.classList.toggle('projector', this.active);
+    this.button.textContent = this.active ? 'Salir del modo proyector' : 'Modo proyector';
     this.rebuild();
     this.onToggle();
   }

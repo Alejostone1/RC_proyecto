@@ -34,7 +34,7 @@ export class PhasePortrait extends CanvasPlot {
 
     // Punto de equilibrio: q = C·E₀ para el escalón, 0 en los demás casos
     const qEq = excitation.kind === 'step' ? params.C * excitation.E0 : 0;
-    c.strokeStyle = 'rgba(255,255,255,0.5)';
+    c.strokeStyle = COLORS.cursor;
     c.lineWidth = 1;
     c.beginPath();
     c.arc(X(qEq), Y(0), 5, 0, Math.PI * 2);
@@ -51,7 +51,7 @@ export class PhasePortrait extends CanvasPlot {
         const a = k * per;
         const b = Math.min(n, a + per + 1);
         if (b - a < 2) continue;
-        c.strokeStyle = `rgba(79, 195, 255, ${0.15 + (0.85 * (k + 1)) / chunks})`;
+        c.strokeStyle = `rgba(${COLORS.trailRGB}, ${0.15 + (0.85 * (k + 1)) / chunks})`;
         c.beginPath();
         for (let m = a; m < b; m += stride) {
           const x = X(hist.get('q', m));
@@ -65,7 +65,7 @@ export class PhasePortrait extends CanvasPlot {
       const i = hist.get('i', n - 1);
       c.fillStyle = COLORS.i;
       c.shadowColor = COLORS.i;
-      c.shadowBlur = 10;
+      c.shadowBlur = COLORS.glow * 1.6;
       c.beginPath();
       c.arc(X(q), Y(i), 4, 0, Math.PI * 2);
       c.fill();

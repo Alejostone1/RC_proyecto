@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { CAP, NODES, WIRE_Y } from '../scene/CircuitPath';
 import { cylinderBetween, disposeTree, materials } from '../scene/Materials';
+import { blendingFor, type SceneThemeDef } from '../scene/SceneTheme';
 import { norm, type LabComponent, type VisualFrame } from './types';
 
 const PLATE = 0.95;
@@ -96,6 +97,15 @@ export class Capacitor implements LabComponent {
       }
     }
     this.group.add(this.fieldGroup);
+  }
+
+  applyTheme(t: SceneThemeDef): void {
+    this.fieldMat.color.setHex(t.electricColor);
+    const b = blendingFor(t);
+    if (this.fieldMat.blending !== b) {
+      this.fieldMat.blending = b;
+      this.fieldMat.needsUpdate = true;
+    }
   }
 
   update(f: VisualFrame): void {

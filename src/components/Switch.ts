@@ -17,6 +17,9 @@ export class Switch implements LabComponent {
   private readonly pivot = new THREE.Group();
   private readonly contactMat: THREE.MeshStandardMaterial;
   private angle = OPEN_ANGLE;
+  private wasClosed = false;
+  /** Destello breve al hacer contacto (retroalimentación visual, no un arco modelado). */
+  private readonly flash = new THREE.PointLight(0xffd9a0, 0, 1.6, 2);
 
   constructor() {
     const m = materials();
@@ -52,6 +55,9 @@ export class Switch implements LabComponent {
     this.pickables.push(blade, handle);
     this.group.add(this.pivot);
 
+    this.flash.position.set(b.x, WIRE_Y + 0.15, b.z);
+    this.group.add(this.flash);
+
     // Tramito de cable entre el poste y el nodo (estético)
     this.group.add(cylinderBetween(new THREE.Vector3(a.x - 0.05, WIRE_Y, a.z), a, 0.03, m.copper));
   }
@@ -60,6 +66,9 @@ export class Switch implements LabComponent {
     const target = f.switchClosed ? 0 : OPEN_ANGLE;
     this.angle += (target - this.angle) * (1 - Math.exp(-f.dt * 12));
     this.pivot.rotation.z = this.angle;
+    if (f.switchClosed && !this.wasClosed) this.flash.intensity = 6;
+    this.wasClosed = f.switchClosed;
+    this.flash.intensity *= Math.exp(-f.dt * 9);
     this.contactMat.emissive.setRGB(f.switchClosed ? 0.1 : 0, f.switchClosed ? 0.45 : 0, f.switchClosed ? 0.25 : 0);
   }
 

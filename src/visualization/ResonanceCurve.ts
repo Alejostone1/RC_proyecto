@@ -39,7 +39,7 @@ export class ResonanceCurve extends CanvasPlot {
     const X = (w: number) => pad + (w / wMax) * W;
     const Y = (v: number) => pad + H - Math.min(1.05, v / (iMax * 1.1)) * H;
 
-    c.fillStyle = 'rgba(255, 179, 71, 0.08)';
+    c.fillStyle = COLORS.band;
     c.fillRect(X(info.omega0 - info.halfBandwidth), pad, X(info.omega0 + info.halfBandwidth) - X(info.omega0 - info.halfBandwidth), H);
 
     c.strokeStyle = COLORS.i;
@@ -63,7 +63,7 @@ export class ResonanceCurve extends CanvasPlot {
       c.stroke();
       c.setLineDash([]);
     };
-    vline(info.omega0, 'rgba(255,255,255,0.45)', [4, 4]);
+    vline(info.omega0, COLORS.cursor, [4, 4]);
     if (excitation.kind === 'sine') {
       vline(excitation.omega, info.near ? COLORS.error : COLORS.q, []);
       const v = currentAmplitude(params, E0, excitation.omega);

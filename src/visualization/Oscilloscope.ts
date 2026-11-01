@@ -25,10 +25,10 @@ const NY = 8;
 
 export class Oscilloscope extends CanvasPlot {
   readonly channels: ScopeChannel[] = [
-    { id: 'A', key: 'q', label: 'q(t)', unit: 'C', color: COLORS.q, enabled: true },
-    { id: 'B', key: 'i', label: 'i(t)', unit: 'A', color: COLORS.i, enabled: true },
-    { id: 'C', key: 'VL', label: 'V_L(t)', unit: 'V', color: COLORS.VL, enabled: false },
-    { id: 'D', key: 'VC', label: 'V_C(t)', unit: 'V', color: COLORS.VC, enabled: false },
+    { id: 'A', key: 'q', label: 'q(t)', unit: 'C', get color() { return COLORS.q; }, enabled: true },
+    { id: 'B', key: 'i', label: 'i(t)', unit: 'A', get color() { return COLORS.i; }, enabled: true },
+    { id: 'C', key: 'VL', label: 'V_L(t)', unit: 'V', get color() { return COLORS.VL; }, enabled: false },
+    { id: 'D', key: 'VC', label: 'V_C(t)', unit: 'V', get color() { return COLORS.VC; }, enabled: false },
   ];
   timeDiv = 0.5;
   zoom = 1;
@@ -103,7 +103,7 @@ export class Oscilloscope extends CanvasPlot {
       const y0 = padT + H / 2;
       c.strokeStyle = ch.color;
       c.shadowColor = ch.color;
-      c.shadowBlur = 6;
+      c.shadowBlur = COLORS.glow;
       c.beginPath();
       for (let n = from; n < to; n += stride) {
         const x = xOf(hist.get('t', n));
@@ -114,6 +114,7 @@ export class Oscilloscope extends CanvasPlot {
       c.stroke();
     }
     c.restore();
+    c.shadowBlur = 0;
 
     // Etiquetas de canal y escala por división
     let lx = padL + 4;
@@ -131,7 +132,7 @@ export class Oscilloscope extends CanvasPlot {
       const tc = tStart + ((this.cursorX - padL) / W) * span;
       const n = Math.min(to - 1, Math.max(from, hist.indexAtTime(tc)));
       const x = xOf(hist.get('t', n));
-      c.strokeStyle = 'rgba(255,255,255,0.35)';
+      c.strokeStyle = COLORS.cursor;
       c.setLineDash([4, 4]);
       c.beginPath();
       c.moveTo(x + 0.5, padT);
@@ -141,7 +142,7 @@ export class Oscilloscope extends CanvasPlot {
       const lines = [`t = ${hist.get('t', n).toFixed(4)} s`];
       for (const ch of this.channels) if (ch.enabled) lines.push(`${ch.label} = ${fmtSI(hist.get(ch.key, n), ch.unit)}`);
       const bx = x + 150 > this.w ? x - 150 : x + 8;
-      c.fillStyle = 'rgba(8, 14, 24, 0.85)';
+      c.fillStyle = COLORS.tooltip;
       c.fillRect(bx, padT + 4, 142, 16 * lines.length + 6);
       lines.forEach((l, k) => this.label(l, bx + 6, padT + 14 + k * 16, k === 0 ? COLORS.text : this.channels.filter((ch) => ch.enabled)[k - 1].color));
     }

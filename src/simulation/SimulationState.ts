@@ -24,6 +24,10 @@ export interface SimulationState {
   EC: number;
   EL: number;
   PR: number;
+  /** Energía entregada por la fuente desde t = 0: ∫E·i dt [J] */
+  Wsrc: number;
+  /** Energía disipada en R desde t = 0: ∫R·i² dt [J] */
+  Wdiss: number;
   regime: DampingRegime;
   /** Mensaje de error si status === 'error' */
   error: string | null;
@@ -43,6 +47,8 @@ export function createInitialState(regime: DampingRegime): SimulationState {
     EC: 0,
     EL: 0,
     PR: 0,
+    Wsrc: 0,
+    Wdiss: 0,
     regime,
     error: null,
   };

@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { norm, type VisualFrame } from '../components/types';
 import type { CircuitPath } from '../scene/CircuitPath';
+import type { SceneThemeDef } from '../scene/SceneTheme';
 
 const MAX_SPEED = 2.6; // unidades de escena por segundo real cuando |i| = i_máx
 
@@ -35,6 +36,10 @@ export class CurrentFlow {
     this.mesh.frustumCulled = false;
     this.offsets = new Float32Array(count);
     for (let k = 0; k < count; k++) this.offsets[k] = (k / count) * path.length;
+  }
+
+  applyTheme(t: SceneThemeDef): void {
+    this.base.setHex(t.particleColor);
   }
 
   /** Velocidad visual actual (unidades/s), útil para la telemetría. */

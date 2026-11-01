@@ -7,6 +7,7 @@ import type { Excitation } from '../physics/Excitation';
 import type { RLCParams } from '../physics/RLCModel';
 import type { PhysicalScales } from '../physics/Scales';
 import type { SimulationState } from '../simulation/SimulationState';
+import type { SceneThemeDef } from '../scene/SceneTheme';
 
 export interface VisualFrame {
   state: Readonly<SimulationState>;
@@ -32,6 +33,7 @@ export interface LabComponent {
   /** Punto de enfoque para cámara/etiquetas. */
   readonly anchor: THREE.Vector3;
   onConfigure?(frame: VisualFrame): void;
+  applyTheme?(theme: SceneThemeDef): void;
   update(frame: VisualFrame): void;
   dispose(): void;
 }

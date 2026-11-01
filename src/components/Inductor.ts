@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { COIL, NODES, coilPoints } from '../scene/CircuitPath';
 import { cylinderBetween, disposeTree, materials } from '../scene/Materials';
+import { blendingFor, type SceneThemeDef } from '../scene/SceneTheme';
 import { norm, type LabComponent, type VisualFrame } from './types';
 
 const FIELD_LINES = 8;
@@ -28,6 +29,8 @@ export class Inductor implements LabComponent {
   private readonly curves: THREE.EllipseCurve[] = [];
   private readonly angles: number[] = [];
   private phase = 0;
+  /** Ganancia del brillo de la bobina (menor en tema claro: sin efecto neón). */
+  private coilGain = 1.6;
   private readonly m4 = new THREE.Matrix4();
   private readonly v2 = new THREE.Vector2();
   private readonly v3 = new THREE.Vector3();
@@ -86,11 +89,23 @@ export class Inductor implements LabComponent {
     this.group.add(this.markers);
   }
 
+  applyTheme(t: SceneThemeDef): void {
+    this.fieldMat.color.setHex(t.magneticColor);
+    this.coilMat.emissive.setHex(t.additive ? 0x7a3cff : t.magneticColor);
+    this.coilGain = t.additive ? 1.6 : 0.45;
+    this.markerMat.color.setHex(t.magneticMarkerColor);
+    const b = blendingFor(t);
+    if (this.fieldMat.blending !== b) {
+      this.fieldMat.blending = this.markerMat.blending = b;
+      this.fieldMat.needsUpdate = this.markerMat.needsUpdate = true;
+    }
+  }
+
   update(f: VisualFrame): void {
     const iN = norm(f.state.i, f.scales.i);
     const vN = norm(f.state.VL, f.scales.VL);
     // La fem inducida solo existe con el circuito cerrado
-    this.coilMat.emissiveIntensity = f.switchClosed ? 1.6 * vN : 0;
+    this.coilMat.emissiveIntensity = f.switchClosed ? this.coilGain * vN : 0;
     this.fieldMat.opacity = 0.08 + 0.75 * iN;
     this.markerMat.opacity = Math.min(1, 1.2 * iN);
     // Sentido de B según el signo de i; velocidad de los marcadores ∝ |i|

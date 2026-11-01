@@ -24,6 +24,7 @@ import { clamp } from '../utils/MathUtils';
 import { computeScales, type PhysicalScales } from '../physics/Scales';
 import { FixedTimestep } from './FixedTimestep';
 import { History } from './History';
+import { RunStatistics } from './RunStatistics';
 import { createInitialState, type SimulationState } from './SimulationState';
 
 export interface SimulationConfig {
@@ -48,8 +49,14 @@ export class SimulationEngine {
   analysis!: DampingAnalysis;
   private config!: SimulationConfig;
   private f!: StateDerivative;
-  private readonly solver = new RK4Solver(2);
-  private readonly x = new Float64Array(2);
+  /**
+   * Estado aumentado x = [q, i, W_fuente, W_R]. Las dos últimas componentes son
+   * integrales de energía (W' = E·i, W_R' = R·i²) que RK4 integra con el mismo
+   * orden 4 que q e i; no influyen en la dinámica de q e i.
+   */
+  private readonly solver = new RK4Solver(4);
+  private readonly x = new Float64Array(4);
+  private fAug!: StateDerivative;
   private readonly dx = new Float64Array(2);
   private readonly energy: EnergySnapshot = { EC: 0, EL: 0, total: 0, PR: 0 };
   private stepCount = 0;
@@ -60,6 +67,8 @@ export class SimulationEngine {
   scales!: PhysicalScales;
   /** Intervalo de muestreo del historial [s de simulación]. */
   sampleDt = 0.002;
+  /** Estadísticas acumuladas de la corrida actual (para el informe de resultados). */
+  readonly stats = new RunStatistics();
   private nextSampleStep = 0;
   private sampleEverySteps = 1;
 
@@ -102,6 +111,14 @@ export class SimulationEngine {
       initial: { ...config.initial },
     };
     this.f = createRLCDerivative(this.config.params, this.config.excitation);
+    const f2 = this.f;
+    const exc = this.config.excitation;
+    const R = this.config.params.R;
+    this.fAug = (t, x, out) => {
+      f2(t, x, out);
+      out[2] = evaluateExcitation(exc, t) * x[1];
+      out[3] = R * x[1] * x[1];
+    };
     this.analysis = classifyDamping(this.config.params);
     this.clock.h = recommendedTimestep(this.analysis, this.config.excitation);
     this.scales = computeScales(this.config.params, this.config.excitation, this.config.initial, this.analysis);
@@ -116,6 +133,8 @@ export class SimulationEngine {
   reset(): void {
     this.x[0] = this.config.initial.q0;
     this.x[1] = this.config.initial.i0;
+    this.x[2] = 0;
+    this.x[3] = 0;
     this.stepCount = 0;
     this.clock.reset();
     this.state.status = 'idle';
@@ -123,6 +142,11 @@ export class SimulationEngine {
     this.state.regime = this.analysis.regime;
     this.history.clear();
     this.nextSampleStep = 0;
+    const { params, excitation, initial } = this.config;
+    const qRef = excitation.kind === 'step' ? params.C * excitation.E0 : 0;
+    const span = Math.abs(qRef - initial.q0);
+    const band = 0.02 * (excitation.kind === 'step' && span > 0 ? span : this.scales.q);
+    this.stats.reset(initial.q0, initial.i0, evaluateExcitation(excitation, 0), params.R, qRef, band);
     this.syncState();
     this.recordSample();
   }
@@ -170,7 +194,9 @@ export class SimulationEngine {
     const t = this.stepCount * this.clock.h;
     const prevQ = this.x[0];
     const prevI = this.x[1];
-    this.solver.step(this.f, t, this.x, this.clock.h);
+    const prevW = this.x[2];
+    const prevWR = this.x[3];
+    this.solver.step(this.fAug, t, this.x, this.clock.h);
     this.stepCount++;
     const q = this.x[0];
     const i = this.x[1];
@@ -184,9 +210,19 @@ export class SimulationEngine {
       // Se restaura el último valor finito conocido para que la visualización no reciba NaN.
       this.x[0] = prevQ;
       this.x[1] = prevI;
+      this.x[2] = prevW;
+      this.x[3] = prevWR;
       this.stepCount--;
       return false;
     }
+    const tn = this.stepCount * this.clock.h;
+    const { R, C } = this.config.params;
+    const E = evaluateExcitation(this.config.excitation, tn);
+    const VC = q / C;
+    this.stats.onStep(tn, this.clock.h, q, i, E, R, E - R * i - VC, VC);
+    // Integrales de energía de orden 4 (sustituyen a la estimación por trapecio)
+    this.stats.energyDelivered = this.x[2];
+    this.stats.energyDissipated = this.x[3];
     if (this.stepCount >= this.nextSampleStep) this.recordSample();
     return true;
   }
@@ -208,5 +244,7 @@ export class SimulationEngine {
     s.EC = this.energy.EC;
     s.EL = this.energy.EL;
     s.PR = this.energy.PR;
+    s.Wsrc = this.stats.energyDelivered;
+    s.Wdiss = this.stats.energyDissipated;
   }
 }

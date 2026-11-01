@@ -6,6 +6,7 @@
 import type { ExcitationKind } from '../physics/Excitation';
 import { criticalResistance, naturalFrequency, validateInitialConditions, validateParams } from '../physics/RLCModel';
 import { CAMERA_VIEWS, type CameraView } from '../scene/CameraManager';
+import { LOW_POWER } from '../scene/SceneManager';
 import { PARAM_LIMITS } from '../utils/Constants';
 import { fmtNum } from '../utils/Format';
 import { PRESETS, type LabConfig, type PresetId } from './Presets';
@@ -42,6 +43,7 @@ export interface ControlEvents {
   onView(view: CameraView): void;
   onBloom(on: boolean): void;
   onLabels(on: boolean): void;
+  onOverlay(kind: 'potential' | 'arrows' | 'energy', on: boolean): void;
 }
 
 interface FieldEls {
@@ -85,7 +87,7 @@ export class Controls {
     this.button(r1, '↺ Reiniciar', () => ev.onReset(), 'btn');
     const kb = document.createElement('div');
     kb.className = 'kbd';
-    kb.textContent = 'Espacio: iniciar/pausar · R: reiniciar · P: sustentación · 1–5: cámaras';
+    kb.textContent = 'Espacio: iniciar/pausar · R: reiniciar · P: modo proyector · 1–5: cámaras';
     kb.style.marginTop = '6px';
     sim.appendChild(kb);
 
@@ -163,8 +165,11 @@ export class Controls {
 
     // --- Render ---
     const rend = this.group(root, 'Visualización');
-    rend.appendChild(this.checkbox('Bloom (resplandor)', true, (on) => ev.onBloom(on)));
+    rend.appendChild(this.checkbox('Cables coloreados por potencial', true, (on) => ev.onOverlay('potential', on)));
+    rend.appendChild(this.checkbox('Flechas de caída de tensión', true, (on) => ev.onOverlay('arrows', on)));
+    rend.appendChild(this.checkbox('Monitor de energía (columnas)', true, (on) => ev.onOverlay('energy', on)));
     rend.appendChild(this.checkbox('Etiquetas de componentes', true, (on) => ev.onLabels(on)));
+    rend.appendChild(this.checkbox('Resplandor (bloom)', !LOW_POWER, (on) => ev.onBloom(on)));
 
     // --- Cámaras (sobre el visor) ---
     viewRoot.innerHTML = '';
